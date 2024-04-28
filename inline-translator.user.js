@@ -1,7 +1,7 @@
 // ==UserScript==
 // @id             Inline-Translator
 // @name           Inline-Translator
-// @version        0.1
+// @version        0.2
 // @namespace      12425
 // @author         12425
 // @description    在每个段落之后加上中文翻译
@@ -53,7 +53,7 @@ function fetch(text, callback, arg1, arg2) {
       }
 
       const data = json[0].map(function(item) {
-        return item[0];
+        return item[0].trim();
       }).join('');
       if (text !== data) {
         callback(data, arg1, arg2);
@@ -64,22 +64,22 @@ function fetch(text, callback, arg1, arg2) {
 
 
 function simplify(node) {
-  let array = [];
-  array.push(extractAttrs(node));
+  let attrs = [];
+  attrs.push(extractAttrs(node));
   Array.from(node.querySelectorAll('*')).forEach(function(el) {
-    array.push(extractAttrs(el));
+    attrs.push(extractAttrs(el));
   });
-  return array;
+  return attrs;
 }
 
 
 function extractAttrs(node) {
-  let attributes = {};
+  let attr = {};
   Array.from(node.attributes).forEach(attr => {
-    attributes[attr.name] = attr.value;
+    attr[attr.name] = attr.value;
     node.removeAttribute(attr.name);
   });
-  return attributes;
+  return attr;
 }
 
 
@@ -91,8 +91,7 @@ function resumeAttrs(node, attrs) {
 
 
 function updateNode(data, node, attrs) {
-  const tag = node.tagName.toLowerCase();
-  let newNode = document.createElement(tag);
+  let newNode = document.createElement(node.tagName);
   newNode.innerHTML = data;
   node.insertAdjacentElement('afterend', newNode);
   resumeAttrs(newNode, attrs[0]);
@@ -118,8 +117,9 @@ function translate(node) {
     Array.from(node.children).forEach(translate);
     return;
   }
-  const attrs = simplify(node.cloneNode(true));
-  fetch(node.innerHTML, updateNode, node, attrs);
+  let newNode = node.cloneNode(true);
+  const attrs = simplify(newNode);
+  fetch(newNode.innerHTML, updateNode, node, attrs);
 }
 
 
