@@ -1,10 +1,11 @@
 // ==UserScript==
 // @id             Inline-Translator
 // @name           Inline-Translator
-// @version        0.2
+// @version        0.3
 // @namespace      12425
 // @author         12425
 // @description    在每个段落之后加上中文翻译
+// @downloadURL    https://github.com/12425/Inline-Translate.user.js/raw/main/inline-translator.user.js
 // @include        http://*
 // @include        https://*
 // @grant          GM_registerMenuCommand
