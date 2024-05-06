@@ -1,10 +1,11 @@
 // ==UserScript==
 // @id             Inline-Translator
 // @name           Inline-Translator
-// @version        0.3
+// @version        0.4
 // @namespace      12425
 // @author         12425
 // @description    在每个段落之后加上中文翻译
+// @license        MIT
 // @downloadURL    https://github.com/12425/Inline-Translate.user.js/raw/main/inline-translator.user.js
 // @include        http://*
 // @include        https://*
@@ -35,9 +36,9 @@ const TranslationTags = new Set([
   "h4",
   "h5",
   "h6",
+  "li",
   "ol",
   "p",
-  "ul",
 ]);
 
 
