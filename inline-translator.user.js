@@ -1,7 +1,7 @@
 // ==UserScript==
 // @id             Inline-Translator
 // @name           Inline-Translator
-// @version        0.4
+// @version        0.5
 // @namespace      12425
 // @author         12425
 // @description    在每个段落之后加上中文翻译
@@ -9,6 +9,7 @@
 // @downloadURL    https://github.com/12425/Inline-Translate.user.js/raw/main/inline-translator.user.js
 // @include        http://*
 // @include        https://*
+// @run-at         document-idle
 // @grant          GM_registerMenuCommand
 // @grant          GM_xmlhttpRequest
 // ==/UserScript==
@@ -49,12 +50,16 @@ function fetch(text, callback, arg1, arg2) {
     onload: function(resp) {
       let json = null;
       try {
-        json = JSON.parse(resp.responseText);
+        json = JSON.parse(resp.responseText)[0];
       } catch {
         return;
       }
 
-      const data = json[0].map(function(item) {
+      if (!json) {
+        return;
+      }
+
+      const data = json.map(function(item) {
         return item[0].trim();
       }).join('');
       if (text !== data) {
@@ -65,13 +70,40 @@ function fetch(text, callback, arg1, arg2) {
 }
 
 
-function simplify(node) {
-  let attrs = [];
+function simplify(node, attrs) {
+  // return false if node is removed
+  if (!removeEmptyNode(node)) {
+    return false;
+  }
   attrs.push(extractAttrs(node));
   Array.from(node.querySelectorAll('*')).forEach(function(el) {
     attrs.push(extractAttrs(el));
   });
-  return attrs;
+  return true;
+}
+
+
+function removeEmptyNode(node) {
+  // return false if node is removed
+  const children = node.querySelectorAll('*');
+  if (children.length) {
+    let toDelete = true;
+    for (const child of children) {
+      if (removeEmptyNode(child)) {
+        toDelete = false;
+      }
+    }
+    if (!toDelete) {
+      return true;
+    }
+  }
+
+  if (!node.innerHTML.trim().length) {
+    node.remove();
+    return false;
+  }
+
+  return true;
 }
 
 
@@ -120,8 +152,10 @@ function translate(node) {
     return;
   }
   let newNode = node.cloneNode(true);
-  const attrs = simplify(newNode);
-  fetch(newNode.innerHTML, updateNode, node, attrs);
+  let attrs = [];
+  if (simplify(newNode, attrs)) {
+    fetch(newNode.innerHTML, updateNode, node, attrs);
+  }
 }
 
 
