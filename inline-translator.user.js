@@ -15,9 +15,11 @@
 // ==/UserScript==
 
 
+(function() {
+
+
 'use strict';
 
-(function() {
 
 GM_registerMenuCommand("翻译成双语网页", () => {
   const root = document.body;
@@ -30,20 +32,49 @@ GM_registerMenuCommand("翻译成双语网页", () => {
 
 
 const TranslationTags = new Set([
-  "blockquote",
-  "h1",
-  "h2",
-  "h3",
-  "h4",
-  "h5",
-  "h6",
-  "li",
-  "ol",
-  "p",
+  'blockquote',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'li',
+  'ol',
+  'p',
 ]);
 
 
-function fetch(text, callback, arg1, arg2) {
+const TranslationClass = new Set([
+  'comment',
+]);
+
+
+const DeleteTags = new Array([
+  'audio',
+  'iframe',
+  'img',
+  'meta',
+  'picture',
+  'script',
+  'svg',
+  'video',
+]);
+
+
+const SkipTags = new Array([
+  'code',
+  'pre',
+]);
+
+
+const EmptyTags = new Set([
+  'br',
+  'hr',
+]);
+
+
+function fetch(text, callback, arg1, arg2, arg3) {
   GM_xmlhttpRequest({
     method: 'GET',
     url: `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh&dt=t&q=${encodeURIComponent(text)}`,
@@ -59,26 +90,35 @@ function fetch(text, callback, arg1, arg2) {
         return;
       }
 
-      const data = json.map(function(item) {
+      const data = json.map(item => {
         return item[0].trim();
       }).join('');
       if (text !== data) {
-        callback(data, arg1, arg2);
+        callback(data, arg1, arg2, arg3);
       }
     },
   });
 }
 
 
-function simplify(node, attrs) {
+function simplify(node, attrs, values) {
   // return false if node is removed
+  node.querySelectorAll(DeleteTags.join(',')).forEach(el => {
+    el.remove();
+  });
   if (!removeEmptyNode(node)) {
     return false;
   }
   attrs.push(extractAttrs(node));
-  Array.from(node.querySelectorAll('*')).forEach(function(el) {
+  node.querySelectorAll('*').forEach(el => {
     attrs.push(extractAttrs(el));
   });
+  node.querySelectorAll(SkipTags.join(',')).forEach(el => {
+    values.push(el.innerHTML);
+    el.innerHTML = '';
+  });
+
+  node.innerHTML = node.innerHTML.replace(/\s*(\n\s*)+\s*/g, ' ');
   return true;
 }
 
@@ -96,6 +136,10 @@ function removeEmptyNode(node) {
     if (!toDelete) {
       return true;
     }
+  }
+
+  if (EmptyTags.has(node.tagName)) {
+    return true;
   }
 
   if (!node.innerHTML.trim().length) {
@@ -124,15 +168,16 @@ function resumeAttrs(node, attrs) {
 }
 
 
-function updateNode(data, node, attrs) {
+function updateNode(data, node, attrs, values) {
   let newNode = document.createElement(node.tagName);
   newNode.innerHTML = data;
   node.insertAdjacentElement('afterend', newNode);
   resumeAttrs(newNode, attrs[0]);
-  let i = 1;
-  Array.from(node.querySelectorAll('*')).forEach(function(el) {
+  node.querySelectorAll('*').forEach((el, i) => {
     resumeAttrs(el, attrs[i]);
-    i++;
+  });
+  node.querySelectorAll(SkipTags.join(',')).forEach((el, i) => {
+    el.innerHTML = values[i];
   });
   if (node.parentNode.tagName !== 'SMALL') {
     const smallNode = document.createElement('small');
@@ -147,14 +192,15 @@ function translate(node) {
   if (!tag) {
     return;
   }
-  if (!TranslationTags.has(tag)) {
+  if (!TranslationTags.has(tag) && !Array.from(node.classList).some(c => TranslationClass.has(c))) {
     Array.from(node.children).forEach(translate);
     return;
   }
   let newNode = node.cloneNode(true);
   let attrs = [];
-  if (simplify(newNode, attrs)) {
-    fetch(newNode.innerHTML, updateNode, node, attrs);
+  let values = [];
+  if (simplify(newNode, attrs, values)) {
+    fetch(newNode.innerHTML, updateNode, node, attrs, values);
   }
 }
 
